@@ -1,8 +1,8 @@
 import streamlit as st
-import pickle
+import joblib
 
 st.set_page_config(
-    page_title="RetainAI - Customer Churn Intelligence",
+    page_title="RetainAI",
     page_icon="📊",
     layout="wide"
 )
@@ -11,17 +11,14 @@ st.title("📊 RetainAI")
 st.subheader("AI-Powered Customer Retention Intelligence")
 
 st.write(
-    "Predict customer churn, understand customer risk, "
-    "and identify customers who need attention first."
+    "A customer churn intelligence system that helps businesses "
+    "identify customers who may leave and prioritize retention efforts."
 )
 
-# Load trained model
 try:
-    with open("models/churn_model.pkl", "rb") as file:
-        model = pickle.load(file)
-
+    model = joblib.load("models/churn_model.pkl")
     st.success("✅ Churn model loaded successfully!")
 
 except Exception as e:
-    st.error("❌ Model could not be loaded.")
-    st.code(str(e))
+    st.error("❌ Could not load the churn model.")
+    st.write(e)
