@@ -31,7 +31,6 @@ except Exception as e:
     st.write(e)
     st.stop()
 
-
 # -----------------------------------
 # Upload Customer Data
 # -----------------------------------
@@ -59,26 +58,38 @@ if uploaded_file is not None:
     )
 
     # -----------------------------------
-    # Model Feature Check
+    # RetainAI Analysis
     # -----------------------------------
     st.subheader("🤖 RetainAI Analysis")
 
     try:
-        # Check the number of model features
+
+        # The model was trained using 23 features
         expected_features = model.n_features_in_
 
         st.write(
             f"Model expects **{expected_features} features**."
         )
 
-        # Check whether uploaded data already matches model input
-        if df.shape[1] == expected_features:
+        # Remove target column
+        if "Churn" in df.columns:
+            X_input = df.drop("Churn", axis=1)
+        else:
+            X_input = df.copy()
 
-            predictions = model.predict(df)
+        # -----------------------------------
+        # Check feature count
+        # -----------------------------------
+        if X_input.shape[1] == expected_features:
 
-            probabilities = model.predict_proba(df)
+            # -----------------------------------
+            # Prediction
+            # -----------------------------------
+            predictions = model.predict(X_input)
 
-            # Probability of positive/churn class
+            probabilities = model.predict_proba(X_input)
+
+            # Probability of churn
             churn_probability = probabilities[:, 1] * 100
 
             result = df.copy()
@@ -91,7 +102,11 @@ if uploaded_file is not None:
             result["Risk Level"] = pd.cut(
                 result["Churn Probability (%)"],
                 bins=[-1, 30, 70, 100],
-                labels=["Low", "Medium", "High"]
+                labels=[
+                    "Low",
+                    "Medium",
+                    "High"
+                ]
             )
 
             # -----------------------------------
@@ -108,10 +123,12 @@ if uploaded_file is not None:
                 ]
             )
 
-            st.success("✅ Churn analysis completed!")
+            st.success(
+                "✅ Churn analysis completed successfully!"
+            )
 
             # -----------------------------------
-            # Summary Metrics
+            # Dashboard Metrics
             # -----------------------------------
             col1, col2, col3, col4 = st.columns(4)
 
@@ -122,6 +139,7 @@ if uploaded_file is not None:
                 )
 
             with col2:
+
                 high_risk = (
                     result["Risk Level"] == "High"
                 ).sum()
@@ -132,6 +150,7 @@ if uploaded_file is not None:
                 )
 
             with col3:
+
                 average_risk = result[
                     "Churn Probability (%)"
                 ].mean()
@@ -142,6 +161,7 @@ if uploaded_file is not None:
                 )
 
             with col4:
+
                 critical = (
                     result["Retention Priority"] == "Critical"
                 ).sum()
@@ -184,11 +204,14 @@ if uploaded_file is not None:
 
             st.warning(
                 f"""
-                ⚠️ The uploaded file contains {df.shape[1]} columns,
-                but the model expects {expected_features} features.
+                ⚠️ After removing the Churn column, the uploaded
+                file has {X_input.shape[1]} features.
 
-                Your uploaded CSV needs to use the same preprocessing
-                that was used during model training.
+                However, the model expects {expected_features}
+                features.
+
+                This means the preprocessing used during model
+                training is different from the uploaded CSV.
                 """
             )
 
