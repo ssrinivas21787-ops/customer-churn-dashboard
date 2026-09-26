@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# -----------------------------------
-# Page Configuration
-# -----------------------------------
 st.set_page_config(
     page_title="RetainAI",
     page_icon="📊",
@@ -19,21 +16,16 @@ st.write(
     "and prioritize retention efforts using machine learning."
 )
 
-# -----------------------------------
-# Load Model
-# -----------------------------------
+# Load model
 try:
     model = joblib.load("./models/churn_model.pkl")
     st.success("✅ Churn model loaded successfully!")
-
 except Exception as e:
     st.error("❌ Could not load the churn model.")
     st.write(e)
     st.stop()
 
-# -----------------------------------
-# Upload Customer Data
-# -----------------------------------
+# Upload data
 st.header("📁 Customer Data")
 
 uploaded_file = st.file_uploader(
@@ -47,9 +39,6 @@ if uploaded_file is not None:
 
     st.success(f"✅ {len(df)} customers loaded!")
 
-    # -----------------------------------
-    # Customer Preview
-    # -----------------------------------
     st.subheader("Customer Data Preview")
 
     st.dataframe(
@@ -57,48 +46,35 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
-    # -----------------------------------
-    # RetainAI Analysis
-    # -----------------------------------
     st.subheader("🤖 RetainAI Analysis")
 
     try:
 
-        # The model was trained using 23 features
         expected_features = model.n_features_in_
 
         st.write(
             f"Model expects **{expected_features} features**."
         )
 
-        # Remove target column
+        # Remove Churn column
         if "Churn" in df.columns:
             X_input = df.drop("Churn", axis=1)
         else:
             X_input = df.copy()
 
-        # -----------------------------------
-        # Check feature count
-        # -----------------------------------
+        # Check features
         if X_input.shape[1] == expected_features:
 
-            # -----------------------------------
             # Prediction
-            # -----------------------------------
-            predictions = model.predict(X_input)
-
             probabilities = model.predict_proba(X_input)
 
-            # Probability of churn
             churn_probability = probabilities[:, 1] * 100
 
             result = df.copy()
 
             result["Churn Probability (%)"] = churn_probability
 
-            # -----------------------------------
-            # Risk Level
-            # -----------------------------------
+            # Risk
             result["Risk Level"] = pd.cut(
                 result["Churn Probability (%)"],
                 bins=[-1, 30, 70, 100],
@@ -109,9 +85,7 @@ if uploaded_file is not None:
                 ]
             )
 
-            # -----------------------------------
-            # Retention Priority
-            # -----------------------------------
+            # Priority
             result["Retention Priority"] = pd.cut(
                 result["Churn Probability (%)"],
                 bins=[-1, 30, 70, 85, 100],
@@ -123,13 +97,32 @@ if uploaded_file is not None:
                 ]
             )
 
+            # Recommended action
+            def retention_action(priority):
+
+                if priority == "Critical":
+                    return "Immediate personal contact + retention offer"
+
+                elif priority == "High":
+                    return "Contact customer + personalized offer"
+
+                elif priority == "Medium":
+                    return "Send personalized engagement offer"
+
+                else:
+                    return "Continue regular engagement"
+
+            result["Recommended Action"] = (
+                result["Retention Priority"]
+                .astype(str)
+                .apply(retention_action)
+            )
+
             st.success(
                 "✅ Churn analysis completed successfully!"
             )
 
-            # -----------------------------------
-            # Dashboard Metrics
-            # -----------------------------------
+            # Dashboard
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
@@ -139,7 +132,6 @@ if uploaded_file is not None:
                 )
 
             with col2:
-
                 high_risk = (
                     result["Risk Level"] == "High"
                 ).sum()
@@ -150,7 +142,6 @@ if uploaded_file is not None:
                 )
 
             with col3:
-
                 average_risk = result[
                     "Churn Probability (%)"
                 ].mean()
@@ -161,7 +152,6 @@ if uploaded_file is not None:
                 )
 
             with col4:
-
                 critical = (
                     result["Retention Priority"] == "Critical"
                 ).sum()
@@ -171,9 +161,7 @@ if uploaded_file is not None:
                     critical
                 )
 
-            # -----------------------------------
-            # Priority Customers
-            # -----------------------------------
+            # Priority customers
             st.subheader(
                 "🚨 Customers Requiring Immediate Attention"
             )
@@ -188,9 +176,29 @@ if uploaded_file is not None:
                 use_container_width=True
             )
 
-            # -----------------------------------
-            # Download Results
-            # -----------------------------------
+            # Recommended actions
+            st.subheader(
+                "💡 Recommended Retention Actions"
+            )
+
+            action_view = result[
+                [
+                    "Churn Probability (%)",
+                    "Risk Level",
+                    "Retention Priority",
+                    "Recommended Action"
+                ]
+            ].sort_values(
+                "Churn Probability (%)",
+                ascending=False
+            )
+
+            st.dataframe(
+                action_view.head(20),
+                use_container_width=True
+            )
+
+            # Download
             csv = result.to_csv(index=False)
 
             st.download_button(
@@ -203,16 +211,9 @@ if uploaded_file is not None:
         else:
 
             st.warning(
-                f"""
-                ⚠️ After removing the Churn column, the uploaded
-                file has {X_input.shape[1]} features.
-
-                However, the model expects {expected_features}
-                features.
-
-                This means the preprocessing used during model
-                training is different from the uploaded CSV.
-                """
+                f"⚠️ Uploaded data has {X_input.shape[1]} "
+                f"features, but the model expects "
+                f"{expected_features}."
             )
 
     except Exception as e:
